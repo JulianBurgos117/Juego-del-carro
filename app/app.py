@@ -1,115 +1,21 @@
-import sys
-import os
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        
-from models.tree import Tree
-from models.node import Node
+from .car import Car
 
 class App:
-    def __init__(self):
-        self.tree = Tree()
-        
-    # Insert a new value into the tree
-    def insert(self, value):
-        #avoids same value nodes
-        node = self.search(value)
-        if (node is not None):
-            print("Node with value ", value, " already exists.")
-        else:
-            #create a new node
-            new_node = Node(value)
-            #if tree is empty(there isn't root), new node is root
-            if self.tree.root is None:
-                self.tree.root = new_node
-            else:
-                #try insert the new node 
-                self._insert(self.tree.root, new_node)
+    def __init__(self, config, tree):
+        self.config = config
+        self.tree = tree
+        self.car = Car(
+            color=config.get("car_color", "blue"),
+            speed=config.get("car_speed", 5),
+            jump_height=config.get("jump_height", 3),
+        )
+        self.road_length = config.get("road_length", 1000)
+        self.refresh_time = config.get("refresh_time", 200)
 
-    def _insert(self, current_node, new_node):
-        # new node goes left and current node is parent of new node if new node is smaller than current node and left is empty
-        if new_node.value < current_node.value:
-            if current_node.left is None:
-                current_node.left = new_node
-                new_node.parent = current_node
-                new_node.height = 0
-            else:
-                # if left isnt empty, left node is current node and try again
-                self._insert(current_node.left, new_node)
-        else:
-            # new node goes right and current node is parent of new node if new node is bigger than current node and right is empty
-            if current_node.right is None:
-                current_node.right = new_node
-                new_node.parent = current_node
-                new_node.height = 0
-            else:
-                #if rigth isnt empty, right node is current node and try again
-                self._insert(current_node.right, new_node)
-    
-    # update heigths of nodes in tree
-    def update_heights(self):
-        def _update(node):
-            if node is None:
-                return -1
-            left_height = _update(node.left)
-            right_height = _update(node.right)
-            node.height = max(left_height, right_height) + 1
-            return node.height
-        _update(self.tree.root)
-        
-    # get the balance of nodes
-    def get_balance(self,node):
-        if node is None:
-            return 0
-        node_balance = node.left.height - node.right.hright
-        return node_balance
-        
-    # Search for a value in the tree
-    def search(self, value):
-        # if tree is empty return None
-        if(self.tree.root is None):
-            print("The tree is empty.")
-            return None
-        else:
-            return self._search(self.tree.root, value)
-
-    def _search(self, current_node, value):
-        # return current node if exist
-        if current_node is None or current_node.value == value:
-            return current_node
-        # goes left
-        if value < current_node.value:
-            return self._search(current_node.left, value)
-        # goes right
-        return self._search(current_node.right, value)
-
-    # Find the inorder predecessor (the biggest in the left subtree)
-    def _getPredecessor(self, node):
-        if node.left is not None:
-            current = node.left
-            while current.right is not None:
-                current = current.right
-            return current
-        return None
-
-    # Replace one subtree with another (adjusts parent references)
-    def changeNodePosition(self, node_to_replace, new_subtree_root):
-        if node_to_replace.parent is None:  # If replacing the root
-            self.tree.root = new_subtree_root
-        else:
-            if node_to_replace == node_to_replace.parent.left:
-                node_to_replace.parent.left = new_subtree_root
-            else:
-                node_to_replace.parent.right = new_subtree_root
-        #assigns his new father(father of node to replace)
-        if new_subtree_root is not None:
-            new_subtree_root.parent = node_to_replace.parent
-
-    # Delete a node by value
-    def delete(self, value):
-        node_to_delete = self.search(value)
-        if node_to_delete is not None:
-            self._delete(node_to_delete)
+    def load_obstacles(self, obstacles_list):
+        for obs in obstacles_list:
+            value = (obs["x"], obs["y"])
+            self.tree.root = self.tree.insert(self.tree.root, value, obs["tipo"])
 
     def _delete(self, node_to_delete):
         # Case 1: node is a leaf (no children)
@@ -178,3 +84,11 @@ class App:
     def rotate_right_left(self, x):
         self.rotate_right(x.right)
         self.rotate_left(x)
+
+
+
+
+
+
+
+
