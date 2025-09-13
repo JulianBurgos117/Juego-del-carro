@@ -178,11 +178,3 @@ class App:
     def rotate_right_left(self, x):
         self.rotate_right(x.right)
         self.rotate_left(x)
-
-
-
-
-
-
-
-
