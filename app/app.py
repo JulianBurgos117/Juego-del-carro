@@ -18,18 +18,78 @@ class App:
             value = (obs["x"], obs["y"])
             self.tree.root = self.tree.insert(self.tree.root, value, obs["tipo"])
 
-    def update_game(self):
-        self.car.move_forward()
-        self.check_collision()
+    def _delete(self, node_to_delete):
+        # Case 1: node is a leaf (no children)
+        if node_to_delete.left is None and node_to_delete.right is None:
+            self.changeNodePosition(node_to_delete, None)
+            return
 
-    def check_collision(self):
-        visibles = self.tree.range_query(
-            self.tree.root,
-            self.car.x,
-            self.car.x + 50,  # rango visible
-            0,
-            2
-        )
-        for obs in visibles:
-            if obs.value[0] == self.car.x and obs.value[1] == self.car.y:
-                self.car.collide(obs)
+        # Case 2: node has two children
+        if node_to_delete.left is not None and node_to_delete.right is not None:
+            predecessor = self._getPredecessor(node_to_delete)
+            if predecessor.parent != node_to_delete:  # predecessor is not a direct child
+                self.changeNodePosition(predecessor, predecessor.left)
+                predecessor.left = node_to_delete.left
+                predecessor.left.parent = predecessor
+            self.changeNodePosition(node_to_delete, predecessor)
+            predecessor.right = node_to_delete.right
+            predecessor.right.parent = predecessor
+            return
+
+        # Case 3: node has only one child
+        if node_to_delete.left is not None:
+            self.changeNodePosition(node_to_delete, node_to_delete.left)
+        else:
+            self.changeNodePosition(node_to_delete, node_to_delete.right)
+    
+    # perform a simple rotation to left
+    def rotate_left(self, current_root):
+        new_subroot = current_root.right
+        current_root.right = new_subroot.left
+        if new_subroot.left is not None:
+            new_subroot.left.parent = current_root
+        new_subroot.parent = current_root.parent
+        if current_root.parent is None:
+            self.tree.root = new_subroot
+        elif current_root == current_root.parent.left:
+            current_root.parent.left = new_subroot
+        else:
+            current_root.parent.right = new_subroot
+        new_subroot.left = current_root
+        current_root.parent = new_subroot
+        self.update_heights()
+
+    # perform a simple rotation to right
+    def rotate_right(self, current_root):
+        new_subroot = current_root.left
+        current_root.left = new_subroot.right
+        if new_subroot.right is not None:
+            new_subroot.right.parent = current_root
+        new_subroot.parent = current_root.parent
+        if current_root.parent is None:
+            self.tree.root = new_subroot
+        elif current_root == current_root.parent.right:
+            current_root.parent.right = new_subroot
+        else:
+            current_root.parent.left = new_subroot
+        new_subroot.right = current_root
+        current_root.parent = new_subroot
+        self.update_heights()
+
+    # Rotación doble izquierda-derecha
+    def rotate_left_right(self, x):
+        self.rotate_left(x.left)
+        self.rotate_right(x)
+
+    # Rotación doble derecha-izquierda
+    def rotate_right_left(self, x):
+        self.rotate_right(x.right)
+        self.rotate_left(x)
+
+
+
+
+
+
+
+
