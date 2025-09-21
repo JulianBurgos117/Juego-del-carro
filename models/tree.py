@@ -1,5 +1,5 @@
 #building class of tree
-from .node import Node
+from models.node import Node
 
 class AVLTree:
     def __init__(self):

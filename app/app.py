@@ -1,5 +1,5 @@
 
-from .car import Car
+from app.car import Car
 
 class App:
     def __init__(self, config, tree):
