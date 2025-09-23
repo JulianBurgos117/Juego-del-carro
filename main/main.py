@@ -23,12 +23,15 @@ class graphicInterface:
 
         btn_load = tk.Button(frame, text="Cargar JSON", command=self.load_json)
         btn_load.grid(row=0, column=0, padx=5)
+        
+        btn_load = tk.Button(frame, text="Insertar Obstacles", command=self.insert_node)
+        btn_load.grid(row=0, column=1, padx=5)
 
         btn_start = tk.Button(frame, text="Iniciar Juego", command=self.start_game)
-        btn_start.grid(row=0, column=1, padx=5)
+        btn_start.grid(row=0, column=2, padx=5)
 
         btn_tree = tk.Button(frame, text="Ver AVL", command=self.show_tree)
-        btn_tree.grid(row=0, column=2, padx=5)
+        btn_tree.grid(row=0, column=3, padx=5)
 
         # ===== Canvas para el juego =====
         self.canvas = tk.Canvas(root, width=800, height=300, bg="white")
@@ -44,7 +47,20 @@ class graphicInterface:
                 self.app.load_obstacles(data["obstacles"])
             messagebox.showinfo("Éxito", "Configuración y obstáculos cargados.")
 
-    # ---------- Juego ----------
+    def insert_node(self):
+        if not self.app:
+            messagebox.showwarning("Atención", "Primero cargue la configuración del juego.")
+            return
+
+        # Ejemplo simple: insertar un obstáculo en la posición 150, carril 1
+        x = 150
+        y = 1
+        tipo = "rojo"
+
+        self.app.insert_obstacle(x, y, tipo)
+        messagebox.showinfo("Éxito", f"Obstáculo insertado en x={x}, y={y}, tipo={tipo}")
+
+    # ---------- Game ----------
     def start_game(self):
         if not self.app:
             messagebox.showwarning("Atención", "Primero cargue un archivo JSON.")
@@ -92,38 +108,102 @@ class graphicInterface:
         # Energía
         self.canvas.create_text(700, 20, text=f"Energía: {self.app.car.energy}%", fill="blue")
 
-    # ---------- Mostrar AVL ----------
+    # ---------- Show AVL ----------
     def show_tree(self):
         if not self.tree.root:
             messagebox.showwarning("Atención", "El árbol está vacío.")
             return
 
-        fig, ax = plt.subplots(figsize=(6, 4))
+        # 1) calcular posiciones usando recorrido in-order (x = orden in-order, y = profundidad)
+        positions = {}   # nodo -> (x_index, depth)
+        counter = {"x": 0, "max_depth": 0}
+
+        def inorder(node, depth=0):
+            if not node:
+                return
+            inorder(node.left, depth + 1)
+            positions[node] = (counter["x"], depth)
+            counter["x"] += 1
+            counter["max_depth"] = max(counter["max_depth"], depth)
+            inorder(node.right, depth + 1)
+
+        inorder(self.tree.root)
+
+        # 2) crear figura con tamaño dinámico
+        n_nodes = max(1, counter["x"])
+        max_depth = max(1, counter["max_depth"] + 1)
+        width = max(6, n_nodes * 0.7)
+        height = max(4, max_depth * 1.2)
+
+        fig, ax = plt.subplots(figsize=(width, height))
         ax.set_title("Árbol AVL de Obstáculos")
         ax.axis("off")
 
-        def draw(node, x, y, dx):
-            if not node:
-                return
-            ax.text(x, y, f"{node.value}", ha="center", va="center",
-                    bbox=dict(boxstyle="round", facecolor="lightblue"))
-            if node.left:
-                ax.plot([x, x - dx], [y - 1, y - 2], "k-")
-                draw(node.left, x - dx, y - 2, dx / 2)
-            if node.right:
-                ax.plot([x, x + dx], [y - 1, y - 2], "k-")
-                draw(node.right, x + dx, y - 2, dx / 2)
+        # 3) escalar posiciones
+        spacing_x = 2.0
+        spacing_y = 2.5
+        scaled = {}
+        for node, (xi, depth) in positions.items():
+            x = xi * spacing_x
+            y = -depth * spacing_y
+            scaled[node] = (x, y)
 
-        draw(self.tree.root, 0, 0, 4)
+        # 4) dibujar aristas (todas mismo color)
+        for node, (x, y) in scaled.items():
+            if getattr(node, "left", None) and node.left in scaled:
+                xl, yl = scaled[node.left]
+                ax.plot([x, xl], [y, yl], color="gray", linewidth=1, zorder=1)
+            if getattr(node, "right", None) and node.right in scaled:
+                xr, yr = scaled[node.right]
+                ax.plot([x, xr], [y, yr], color="gray", linewidth=1, zorder=1)
+
+        # 5) dibujar nodos como círculos + info + balance
+        for node, (x, y) in scaled.items():
+            val = getattr(node, "value", None)
+            tipo = getattr(node, "tipo", None) or getattr(node, "tipe", None) or ""
+            balance = getattr(node, "balance", None)
+
+            # Texto principal (coordenadas + tipo)
+            if isinstance(val, (list, tuple)):
+                if len(val) == 4:
+                    label = f"{val[0]},{val[1]} - {val[2]},{val[3]}\n{tipo}"
+                elif len(val) == 2:
+                    label = f"{val[0]},{val[1]}\n{tipo}"
+                else:
+                    label = str(val) + ("\n" + str(tipo) if tipo else "")
+            else:
+                label = str(val) + ("\n" + str(tipo) if tipo else "")
+
+            # Agregar balance factor (BF)
+            if balance is not None:
+                label += f"\nBF={balance}"
+
+            # Dibujar círculo
+            circle = plt.Circle((x, y), radius=0.6, edgecolor="black",
+                                facecolor="lightblue", zorder=2)
+            ax.add_patch(circle)
+
+            # Texto dentro del círculo
+            ax.text(x, y, label, ha="center", va="center", fontsize=8, zorder=3)
+
+        # 6) ajustar límites y mostrar en Toplevel
+        xs = [p[0] for p in scaled.values()]
+        ys = [p[1] for p in scaled.values()]
+        if xs and ys:
+            margin_x = spacing_x
+            margin_y = spacing_y
+            ax.set_xlim(min(xs) - margin_x, max(xs) + margin_x)
+            ax.set_ylim(min(ys) - margin_y, max(ys) + margin_y)
 
         win = tk.Toplevel(self.root)
         canvas = FigureCanvasTkAgg(fig, master=win)
         canvas.draw()
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-
-# --------- Lanzar interfaz ---------
+# --------- Launch interface ---------
 if __name__ == "__main__":
     root = tk.Tk()
     gui = graphicInterface(root)
     root.mainloop()
+    
+#muchacho si va a ejecutar main, desde una terminal pegue y ejecute esto: py -m main.main

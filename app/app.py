@@ -15,8 +15,11 @@ class App:
 
     def load_obstacles(self, obstacles_list):
         for obs in obstacles_list:
-            value = (obs["x"], obs["y"])
-            self.tree.root = self.tree.insert(self.tree.root, value, obs["tipo"])
+            # Asegurarse que el JSON use x1,y1,x2,y2
+            value = (obs["x1"], obs["y1"], obs["x2"], obs["y2"])
+            tipo = obs.get("tipo", obs.get("type", "obstaculo"))
+            self.tree.root = self.tree.insert(self.tree.root, value, tipo)
+
 
     def _delete(self, node_to_delete):
         # Case 1: node is a leaf (no children)
@@ -75,7 +78,7 @@ class App:
         new_subroot.right = current_root
         current_root.parent = new_subroot
         self.update_heights()
-
+        
     # Rotación doble izquierda-derecha
     def rotate_left_right(self, x):
         self.rotate_left(x.left)
@@ -85,6 +88,16 @@ class App:
     def rotate_right_left(self, x):
         self.rotate_right(x.right)
         self.rotate_left(x)
+
+    def insert_obstacle(self, x, y, tipo="normal"):
+        """
+        Inserta un obstáculo en el árbol AVL.
+        x: posición en la carretera
+        y: carril (0, 1 o 2)
+        tipo: tipo de obstáculo (string)
+        """
+        value = (x, y)  # coordenadas del obstáculo
+        self.tree.root = self.tree.insert(self.tree.root, value, tipo)
 
 
 
