@@ -37,9 +37,9 @@ class graphicInterface:
         self.canvas = tk.Canvas(root, width=800, height=300, bg="white")
         self.canvas.pack()
 
-    # ---------- JSON ----------
+    # JSON
     def load_json(self):
-        filename = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
+        filename = "json\config.json"
         if filename:
             with open(filename, "r") as f:
                 data = json.load(f)
@@ -47,25 +47,33 @@ class graphicInterface:
                 self.app.load_obstacles(data["obstacles"])
             messagebox.showinfo("Éxito", "Configuración y obstáculos cargados.")
 
+    # New Obstacle
     def insert_node(self):
         if not self.app:
             messagebox.showwarning("Atención", "Primero cargue la configuración del juego.")
             return
 
-        # Ejemplo simple: insertar un obstáculo en la posición 150, carril 1
-        x = 150
+        x_str = input("Posición x: ")
+
+        if not x_str.isdigit():
+            messagebox.showerror("Error", f"'{x_str}' no es un número válido.")
+            return
+
+        x = int(x_str)
         y = 1
         tipo = "rojo"
 
         self.app.insert_obstacle(x, y, tipo)
         messagebox.showinfo("Éxito", f"Obstáculo insertado en x={x}, y={y}, tipo={tipo}")
 
-    # ---------- Game ----------
+
+    # Game
     def start_game(self):
         if not self.app:
             messagebox.showwarning("Atención", "Primero cargue un archivo JSON.")
             return
         self.game_loop()
+
 
     def game_loop(self):
         if self.app.car.x < self.app.road_length and self.app.car.energy > 0:
@@ -74,6 +82,7 @@ class graphicInterface:
             self.root.after(self.app.refresh_time, self.game_loop)
         else:
             messagebox.showinfo("Juego terminado", "Fin del juego")
+
 
     def draw_game(self):
         self.canvas.delete("all")

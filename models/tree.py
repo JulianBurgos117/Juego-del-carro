@@ -45,26 +45,28 @@ class AVLTree:
 
     # Comparison (x,y)
     def compare(self, v1, v2):
-        # v1 new node = (x1, y1); v2  current node = (x1, y1)
-        if v1[0] < v2[0]:  # comparre by x1
+        if not isinstance(v1, tuple) or not isinstance(v2, tuple):
+            raise TypeError(f"compare esperaba tuplas, recibió {v1} ({type(v1)}), {v2} ({type(v2)})")
+
+        if v1[0] < v2[0]:
             return -1
         elif v1[0] > v2[0]:
             return 1
+        elif v1[1] < v2[1]:
+            return -1
+        elif v1[1] > v2[1]:
+            return 1
         else:
-            # if x1 already exists → compare by y1
-            if v1[1] < v2[1]:
-                return -1
-            elif v1[1] > v2[1]:
-                return 1
-            else:
-                return 0
+            return 0
 
     # Insertion
     def insert(self, root, value, type):
-        # tree is empty
-        if not root[0]:
-            return Node(value, type)
+        print("Insertando:", value, type)
 
+        # tree is empty
+        if not root:
+            return Node(value, type)
+            
         # comparison: We order by x1, y1
         cmp = self.compare(value, root.value)
 

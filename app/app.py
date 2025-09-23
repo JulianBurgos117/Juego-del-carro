@@ -90,14 +90,15 @@ class App:
         self.rotate_left(x)
 
     def insert_obstacle(self, x, y, tipo="normal"):
-        """
-        Inserta un obstáculo en el árbol AVL.
-        x: posición en la carretera
-        y: carril (0, 1 o 2)
-        tipo: tipo de obstáculo (string)
-        """
-        value = (x, y)  # coordenadas del obstáculo
+        try:
+            x = int(x)
+            y = int(y)
+        except ValueError:
+            raise ValueError(f"Coordenadas inválidas: x={x}, y={y}")
+
+        value = (x, y)
         self.tree.root = self.tree.insert(self.tree.root, value, tipo)
+
 
 
 
