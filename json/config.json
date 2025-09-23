@@ -1,17 +1,60 @@
 {
-  "config": {
-    "road_length": 500,
-    "car_speed": 10,
-    "jump_height": 2,
-    "refresh_time": 200,
-    "car_color": "blue"
-  },
-  "obstacles": [
-    {"x1": 50, "y1": 0, "x2": 70, "y2": 0, "tipo": "roca"},
-    {"x1": 120, "y1": 1, "x2": 140, "y2": 1, "tipo": "hueco"},
-    {"x1": 200, "y1": 2, "x2": 220, "y2": 2, "tipo": "cono"},
-    {"x1": 280, "y1": 0, "x2": 300, "y2": 0, "tipo": "roca"},
-    {"x1": 350, "y1": 1, "x2": 370, "y2": 1, "tipo": "hueco"},
-    {"x1": 420, "y1": 2, "x2": 440, "y2": 2, "tipo": "cono"}
-  ]
+    "config": {
+        "road_length": 500,
+        "car_speed": 10,
+        "jump_height": 2,
+        "refresh_time": 200,
+        "car_color": "blue"
+    },
+    "obstacles": [
+        {
+            "x1": 50,
+            "y1": 0,
+            "x2": 70,
+            "y2": 0,
+            "tipo": "roca"
+        },
+        {
+            "x1": 120,
+            "y1": 1,
+            "x2": 140,
+            "y2": 1,
+            "tipo": "hueco"
+        },
+        {
+            "x1": 200,
+            "y1": 2,
+            "x2": 220,
+            "y2": 2,
+            "tipo": "cono"
+        },
+        {
+            "x1": 280,
+            "y1": 0,
+            "x2": 300,
+            "y2": 0,
+            "tipo": "roca"
+        },
+        {
+            "x1": 350,
+            "y1": 1,
+            "x2": 370,
+            "y2": 1,
+            "tipo": "hueco"
+        },
+        {
+            "x1": 420,
+            "y1": 2,
+            "x2": 440,
+            "y2": 2,
+            "tipo": "cono"
+        },
+        {
+            "x1": 10,
+            "y1": 10,
+            "x2": 20,
+            "y2": 20,
+            "tipo": "peaton"
+        }
+    ]
 }

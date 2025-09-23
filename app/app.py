@@ -89,15 +89,18 @@ class App:
         self.rotate_right(x.right)
         self.rotate_left(x)
 
-    def insert_obstacle(self, x, y, tipo="normal"):
+    # Insert a new obstacle
+    def insert_obstacle(self, x1, y1, x2, y2, tipo="normal"):
         try:
-            x = int(x)
-            y = int(y)
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
         except ValueError:
-            raise ValueError(f"Coordenadas inválidas: x={x}, y={y}")
+            raise ValueError(f"Coordenadas inválidas: {x1}, {y1}, {x2}, {y2}")
 
-        value = (x, y)
+        value = (x1, y1, x2, y2)
         self.tree.root = self.tree.insert(self.tree.root, value, tipo)
+
+
+
 
 
 

@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import json
+import os
 
 from app.app import App
 from models.tree import AVLTree
@@ -13,11 +14,12 @@ class graphicInterface:
     def __init__(self, root):
         self.root = root
         self.root.title("Juego Carrito con AVL")
+        self.json_file = "json\config.json"
 
         self.tree = AVLTree()
         self.app = None
 
-        # ===== Botones principales =====
+        # ===== BUTTONS =====
         frame = tk.Frame(root)
         frame.pack(pady=10)
 
@@ -33,19 +35,22 @@ class graphicInterface:
         btn_tree = tk.Button(frame, text="Ver AVL", command=self.show_tree)
         btn_tree.grid(row=0, column=3, padx=5)
 
-        # ===== Canvas para el juego =====
+        # ===== Canvas for game =====
         self.canvas = tk.Canvas(root, width=800, height=300, bg="white")
         self.canvas.pack()
 
     # JSON
     def load_json(self):
-        filename = "json\config.json"
+        filename = "json/config.json"
         if filename:
             with open(filename, "r") as f:
                 data = json.load(f)
+
                 self.app = App(data["config"], self.tree)
                 self.app.load_obstacles(data["obstacles"])
+
             messagebox.showinfo("Éxito", "Configuración y obstáculos cargados.")
+
 
     # New Obstacle
     def insert_node(self):
@@ -53,18 +58,72 @@ class graphicInterface:
             messagebox.showwarning("Atención", "Primero cargue la configuración del juego.")
             return
 
-        x_str = input("Posición x: ")
+        # create popup window
+        top = tk.Toplevel()
+        top.title("Nuevo obstáculo")
 
-        if not x_str.isdigit():
-            messagebox.showerror("Error", f"'{x_str}' no es un número válido.")
-            return
+        labels = ["x1", "y1", "x2", "y2"]
+        entries = {}
 
-        x = int(x_str)
-        y = 1
-        tipo = "rojo"
+        for i, label in enumerate(labels):
+            tk.Label(top, text=label).grid(row=i, column=0, padx=5, pady=5)
+            entry = tk.Entry(top)
+            entry.grid(row=i, column=1, padx=5, pady=5)
+            entries[label] = entry
 
-        self.app.insert_obstacle(x, y, tipo)
-        messagebox.showinfo("Éxito", f"Obstáculo insertado en x={x}, y={y}, tipo={tipo}")
+        # Menú for type
+        tk.Label(top, text="Tipo").grid(row=len(labels), column=0, padx=5, pady=5)
+        tipo_var = tk.StringVar(top)
+        tipo_var.set("roca")  # default
+        opciones_tipo = ["roca", "cono", "hueco", "aceite", "peaton"]
+        menu_tipo = tk.OptionMenu(top, tipo_var, *opciones_tipo)
+        menu_tipo.grid(row=len(labels), column=1, padx=5, pady=5)
+
+        def save():
+            try:
+                x1 = int(entries["x1"].get())
+                y1 = int(entries["y1"].get())
+                x2 = int(entries["x2"].get())
+                y2 = int(entries["y2"].get())
+                tipo = tipo_var.get()
+            except ValueError:
+                messagebox.showerror("Error", "Las coordenadas deben ser números enteros.")
+                return
+
+            # Insert on tree
+            self.app.insert_obstacle(x1, y1, x2, y2, tipo)
+
+            # Seave on JSON
+            nuevo = {"x1": x1, "y1": y1, "x2": x2, "y2": y2, "tipo": tipo}
+            self._save_on_json(nuevo)
+
+            messagebox.showinfo("Éxito", f"Obstáculo insertado: {nuevo}")
+            top.destroy()
+
+        tk.Button(top, text="Guardar", command=save).grid(row=len(labels) + 1, columnspan=2, pady=10)
+
+    # Save new obstacle on JSON
+    def _save_on_json(self, data):
+        if os.path.exists(self.json_file):
+            with open(self.json_file, "r") as f:
+                try:
+                    contenido = json.load(f)
+                    # Ensure has the correct structure
+                    if not isinstance(contenido, dict):
+                        contenido = {"config": {}, "obstacles": []}
+                    if "obstacles" not in contenido:
+                        contenido["obstacles"] = []
+                except json.JSONDecodeError:
+                    contenido = {"config": {}, "obstacles": []}
+        else:
+            contenido = {"config": {}, "obstacles": []}
+
+        # Add new obstacle
+        contenido["obstacles"].append(data)
+
+        # Save again
+        with open(self.json_file, "w") as f:
+            json.dump(contenido, f, indent=4)
 
 
     # Game
@@ -83,7 +142,7 @@ class graphicInterface:
         else:
             messagebox.showinfo("Juego terminado", "Fin del juego")
 
-
+#NOT YET
     def draw_game(self):
         self.canvas.delete("all")
 
