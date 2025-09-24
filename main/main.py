@@ -49,14 +49,16 @@ class graphicInterface:
 
     # JSON
     def load_json(self):
-        filename = "json/config.json"
+        filename = filedialog.askopenfilename(
+            title="Selecciona el archivo de configuración",
+            filetypes=[("Archivos JSON", "*.json")]
+        )
         if filename:
             with open(filename, "r") as f:
                 data = json.load(f)
-
                 self.app = App(data["config"], self.tree)
                 self.app.load_obstacles(data["obstacles"])
-
+            self.json_file = filename  # Actualiza la ruta para guardar cambios
             messagebox.showinfo("Éxito", "Configuración y obstáculos cargados.")
 
 
@@ -117,11 +119,11 @@ class graphicInterface:
             messagebox.showwarning("Atención", "Primero cargue la configuración del juego.")
             return
 
-        # Crear ventana emergente
+        # create popup window
         top = tk.Toplevel()
         top.title("Eliminar obstáculo")
 
-        # Cargar todos los obstáculos desde JSON
+        # Load all obstacles from JSON
         try:
             with open(self.json_file, "r") as f:
                 contenido = json.load(f)
@@ -136,7 +138,7 @@ class graphicInterface:
             top.destroy()
             return
 
-        # Lista desplegable con los obstáculos
+        # Drop-down list with obstacles
         tk.Label(top, text="Seleccione el obstáculo a eliminar").pack(pady=5)
         opciones = [
             f"{i}: ({o['x1']}, {o['y1']}, {o['x2']}, {o['y2']}) - {o['tipo']}"
@@ -152,7 +154,7 @@ class graphicInterface:
             index = int(seleccion.get().split(":")[0])
             obstaculo = obstacles[index]
 
-            # Eliminar del árbol
+            # deleate from tree
             nodo = self.app.search_obstacle(
                 obstaculo["x1"], obstaculo["y1"],
                 obstaculo["x2"], obstaculo["y2"],
@@ -161,16 +163,15 @@ class graphicInterface:
             if nodo:
                 self.app._delete(nodo)
 
-            # Eliminar del JSON
+            # delete from JSON
             obstacles.pop(index)
             contenido["obstacles"] = obstacles
 
             with open(self.json_file, "w") as f:
                 json.dump(contenido, f, indent=4)
 
-            # --- NUEVO: Recargar obstáculos en el árbol AVL ---
-            self.tree.root = None  # Vacía el árbol
-            self.app.load_obstacles(obstacles)  # Recarga desde la lista actualizada
+            self.tree.root = None  # empty the tree
+            self.app.load_obstacles(obstacles)  # Recharge from the updated list
 
             self.show_tree()
 
@@ -220,7 +221,7 @@ class graphicInterface:
         else:
             messagebox.showinfo("Juego terminado", "Fin del juego")
 
-#NOT YET
+    #NOT YET
     def draw_game(self):
         self.canvas.delete("all")
 
@@ -255,31 +256,29 @@ class graphicInterface:
         self.canvas.create_text(700, 20, text=f"Energía: {self.app.car.energy}%", fill="blue")
 
 
-    # ---------- Show AVL ----------
+    # Show AVL
     def show_tree(self):
         if not self.tree.root:
             messagebox.showwarning("Atención", "El árbol está vacío.")
             return
 
-        # --- Crear ventana si no existe o fue cerrada ---
+        # Create window if it does not exist or was closed
         if not hasattr(self, "tree_window") or not self.tree_window.winfo_exists():
             self.tree_window = tk.Toplevel(self.root)
             self.tree_window.title("Árbol AVL de Obstáculos")
         else:
-            # Si ya existe, eliminar el canvas viejo
+            # If it already exists, delete the old canvas
             for widget in self.tree_window.winfo_children():
                 widget.destroy()
 
-        # Crear nueva figura y nuevo canvas SIEMPRE
+        # Create a new figure and a new canvas always
         self.fig, self.ax = plt.subplots(figsize=(6, 4))
         self.tree_canvas = FigureCanvasTkAgg(self.fig, master=self.tree_window)
         self.tree_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-        # ------------------------------
-        #   Redibujar árbol completo
-        # ------------------------------
-
-        # calcular posiciones usando recorrido in-order
+        #   Redraw entire tree
+  
+        # calculate positions using in-order traversal
         positions = {}
         counter = {"x": 0, "max_depth": 0}
 
@@ -294,7 +293,7 @@ class graphicInterface:
 
         inorder(self.tree.root)
 
-        # escalar posiciones
+        # climb positions
         spacing_x = 2.0
         spacing_y = 2.5
         scaled = {}
@@ -303,7 +302,7 @@ class graphicInterface:
             y = -depth * spacing_y
             scaled[node] = (x, y)
 
-        # dibujar aristas
+        # draw edges
         for node, (x, y) in scaled.items():
             if node.left and node.left in scaled:
                 xl, yl = scaled[node.left]
@@ -312,26 +311,26 @@ class graphicInterface:
                 xr, yr = scaled[node.right]
                 self.ax.plot([x, xr], [y, yr], color="gray", linewidth=1, zorder=1)
 
-        # dibujar nodos
+        # draw nodes
         for node, (x, y) in scaled.items():
             val = node.value
             tipo = getattr(node, "type", "")
             balance = self.tree.get_balance(node)
 
-            # etiqueta
+            # label
             if isinstance(val, (list, tuple)) and len(val) == 4:
                 label = f"{val[0]},{val[1]}-{val[2]},{val[3]}\n{tipo}"
             else:
                 label = str(val) + ("\n" + tipo if tipo else "")
             label += f"\nBF={balance}"
 
-            # círculo
+            # circle
             circle = plt.Circle((x, y), radius=0.6, edgecolor="black",
                                 facecolor="lightblue", zorder=2)
             self.ax.add_patch(circle)
             self.ax.text(x, y, label, ha="center", va="center", fontsize=8, zorder=3)
 
-        # ajustar límites
+        # adjust limits
         xs = [p[0] for p in scaled.values()]
         ys = [p[1] for p in scaled.values()]
         if xs and ys:
@@ -341,14 +340,14 @@ class graphicInterface:
         self.ax.set_title("Árbol AVL de Obstáculos")
         self.ax.axis("off")
 
-        # refrescar canvas
+        # refreshr canvas
         self.tree_canvas.draw()
         self.tree_canvas.flush_events()
         self.tree_window.update_idletasks()
 
 
 
-# --------- Launch interface ---------
+# Launch interface
 if __name__ == "__main__":
     root = tk.Tk()
     gui = graphicInterface(root)

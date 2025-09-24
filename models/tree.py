@@ -107,7 +107,7 @@ class AVLTree:
         if root is None:
             return None
 
-        if key == root.value:   # coincidencia exacta
+        if key == root.value:
             return root
         elif key < root.value:
             return self.search(root.left, key)
