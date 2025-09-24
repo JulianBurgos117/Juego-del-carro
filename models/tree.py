@@ -102,17 +102,25 @@ class AVLTree:
         return root
 
     # Search by coordenates
-    def search(self, root, value):
-        #case base: Node not found
-        if not root:
+    
+    def search(self, root, key):
+        if root is None:
             return None
-        cmp = self.compare(value, root.value)
-        if cmp == 0: #find node
+
+        if key == root.value:   # coincidencia exacta
             return root
-        elif cmp < 0:
-            return self.search(root.left, value) #search in the left subtree
+        elif key < root.value:
+            return self.search(root.left, key)
         else:
-            return self.search(root.right, value) #search in the right subtree 
+            return self.search(root.right, key)
+
+
+    def _getPredecessor(self, node):
+
+        current = node.left
+        while current and current.right:
+            current = current.right
+        return current
 
     # ===== routes =====
     def inorder(self, root):

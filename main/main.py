@@ -9,8 +9,13 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
-
+#muchacho si va a ejecutar main, desde una terminal pegue y ejecute esto: py -m main.main
 class graphicInterface:
+    def auto_refresh_tree(self, interval=1000):
+        self.show_tree()
+        self.root.after(interval, self.auto_refresh_tree, interval)
+
+
     def __init__(self, root):
         self.root = root
         self.root.title("Juego Carrito con AVL")
@@ -28,12 +33,15 @@ class graphicInterface:
         
         btn_load = tk.Button(frame, text="Insertar Obstacles", command=self.insert_node)
         btn_load.grid(row=0, column=1, padx=5)
+        
+        btn_load = tk.Button(frame, text="Delete Obstacles", command=self.delete_node)
+        btn_load.grid(row=0, column=2, padx=5)
 
         btn_start = tk.Button(frame, text="Iniciar Juego", command=self.start_game)
-        btn_start.grid(row=0, column=2, padx=5)
+        btn_start.grid(row=0, column=3, padx=5)
 
         btn_tree = tk.Button(frame, text="Ver AVL", command=self.show_tree)
-        btn_tree.grid(row=0, column=3, padx=5)
+        btn_tree.grid(row=0, column=4, padx=5)
 
         # ===== Canvas for game =====
         self.canvas = tk.Canvas(root, width=800, height=300, bg="white")
@@ -101,6 +109,76 @@ class graphicInterface:
             top.destroy()
 
         tk.Button(top, text="Guardar", command=save).grid(row=len(labels) + 1, columnspan=2, pady=10)
+
+
+    # Delete Obstacle
+    def delete_node(self):
+        if not self.app:
+            messagebox.showwarning("Atención", "Primero cargue la configuración del juego.")
+            return
+
+        # Crear ventana emergente
+        top = tk.Toplevel()
+        top.title("Eliminar obstáculo")
+
+        # Cargar todos los obstáculos desde JSON
+        try:
+            with open(self.json_file, "r") as f:
+                contenido = json.load(f)
+                if not isinstance(contenido, dict):
+                    contenido = {"config": {}, "obstacles": []}
+                obstacles = contenido.get("obstacles", [])
+        except (FileNotFoundError, json.JSONDecodeError):
+            obstacles = []
+
+        if not obstacles:
+            messagebox.showinfo("Atención", "No hay obstáculos guardados.")
+            top.destroy()
+            return
+
+        # Lista desplegable con los obstáculos
+        tk.Label(top, text="Seleccione el obstáculo a eliminar").pack(pady=5)
+        opciones = [
+            f"{i}: ({o['x1']}, {o['y1']}, {o['x2']}, {o['y2']}) - {o['tipo']}"
+            for i, o in enumerate(obstacles)
+        ]
+        seleccion = tk.StringVar(top)
+        seleccion.set(opciones[0])
+
+        menu = tk.OptionMenu(top, seleccion, *opciones)
+        menu.pack(pady=5)
+
+        def eliminar():
+            index = int(seleccion.get().split(":")[0])
+            obstaculo = obstacles[index]
+
+            # Eliminar del árbol
+            nodo = self.app.search_obstacle(
+                obstaculo["x1"], obstaculo["y1"],
+                obstaculo["x2"], obstaculo["y2"],
+                obstaculo["tipo"]
+            )
+            if nodo:
+                self.app._delete(nodo)
+
+            # Eliminar del JSON
+            obstacles.pop(index)
+            contenido["obstacles"] = obstacles
+
+            with open(self.json_file, "w") as f:
+                json.dump(contenido, f, indent=4)
+
+            # --- NUEVO: Recargar obstáculos en el árbol AVL ---
+            self.tree.root = None  # Vacía el árbol
+            self.app.load_obstacles(obstacles)  # Recarga desde la lista actualizada
+
+            self.show_tree()
+
+            messagebox.showinfo("Éxito", f"Obstáculo eliminado: {obstaculo}")
+            top.destroy()
+
+        tk.Button(top, text="Eliminar", command=eliminar).pack(pady=10)
+
 
     # Save new obstacle on JSON
     def _save_on_json(self, data):
@@ -176,14 +254,33 @@ class graphicInterface:
         # Energía
         self.canvas.create_text(700, 20, text=f"Energía: {self.app.car.energy}%", fill="blue")
 
+
     # ---------- Show AVL ----------
     def show_tree(self):
         if not self.tree.root:
             messagebox.showwarning("Atención", "El árbol está vacío.")
             return
 
-        # 1) calcular posiciones usando recorrido in-order (x = orden in-order, y = profundidad)
-        positions = {}   # nodo -> (x_index, depth)
+        # --- Crear ventana si no existe o fue cerrada ---
+        if not hasattr(self, "tree_window") or not self.tree_window.winfo_exists():
+            self.tree_window = tk.Toplevel(self.root)
+            self.tree_window.title("Árbol AVL de Obstáculos")
+        else:
+            # Si ya existe, eliminar el canvas viejo
+            for widget in self.tree_window.winfo_children():
+                widget.destroy()
+
+        # Crear nueva figura y nuevo canvas SIEMPRE
+        self.fig, self.ax = plt.subplots(figsize=(6, 4))
+        self.tree_canvas = FigureCanvasTkAgg(self.fig, master=self.tree_window)
+        self.tree_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        # ------------------------------
+        #   Redibujar árbol completo
+        # ------------------------------
+
+        # calcular posiciones usando recorrido in-order
+        positions = {}
         counter = {"x": 0, "max_depth": 0}
 
         def inorder(node, depth=0):
@@ -197,17 +294,7 @@ class graphicInterface:
 
         inorder(self.tree.root)
 
-        # 2) crear figura con tamaño dinámico
-        n_nodes = max(1, counter["x"])
-        max_depth = max(1, counter["max_depth"] + 1)
-        width = max(6, n_nodes * 0.7)
-        height = max(4, max_depth * 1.2)
-
-        fig, ax = plt.subplots(figsize=(width, height))
-        ax.set_title("Árbol AVL de Obstáculos")
-        ax.axis("off")
-
-        # 3) escalar posiciones
+        # escalar posiciones
         spacing_x = 2.0
         spacing_y = 2.5
         scaled = {}
@@ -216,57 +303,50 @@ class graphicInterface:
             y = -depth * spacing_y
             scaled[node] = (x, y)
 
-        # 4) dibujar aristas (todas mismo color)
+        # dibujar aristas
         for node, (x, y) in scaled.items():
-            if getattr(node, "left", None) and node.left in scaled:
+            if node.left and node.left in scaled:
                 xl, yl = scaled[node.left]
-                ax.plot([x, xl], [y, yl], color="gray", linewidth=1, zorder=1)
-            if getattr(node, "right", None) and node.right in scaled:
+                self.ax.plot([x, xl], [y, yl], color="gray", linewidth=1, zorder=1)
+            if node.right and node.right in scaled:
                 xr, yr = scaled[node.right]
-                ax.plot([x, xr], [y, yr], color="gray", linewidth=1, zorder=1)
+                self.ax.plot([x, xr], [y, yr], color="gray", linewidth=1, zorder=1)
 
-        # 5) dibujar nodos como círculos + info + balance
+        # dibujar nodos
         for node, (x, y) in scaled.items():
-            val = getattr(node, "value", None)
-            tipo = getattr(node, "tipo", None) or getattr(node, "tipe", None) or ""
-            balance = getattr(node, "balance", None)
+            val = node.value
+            tipo = getattr(node, "type", "")
+            balance = self.tree.get_balance(node)
 
-            # Texto principal (coordenadas + tipo)
-            if isinstance(val, (list, tuple)):
-                if len(val) == 4:
-                    label = f"{val[0]},{val[1]} - {val[2]},{val[3]}\n{tipo}"
-                elif len(val) == 2:
-                    label = f"{val[0]},{val[1]}\n{tipo}"
-                else:
-                    label = str(val) + ("\n" + str(tipo) if tipo else "")
+            # etiqueta
+            if isinstance(val, (list, tuple)) and len(val) == 4:
+                label = f"{val[0]},{val[1]}-{val[2]},{val[3]}\n{tipo}"
             else:
-                label = str(val) + ("\n" + str(tipo) if tipo else "")
+                label = str(val) + ("\n" + tipo if tipo else "")
+            label += f"\nBF={balance}"
 
-            # Agregar balance factor (BF)
-            if balance is not None:
-                label += f"\nBF={balance}"
-
-            # Dibujar círculo
+            # círculo
             circle = plt.Circle((x, y), radius=0.6, edgecolor="black",
                                 facecolor="lightblue", zorder=2)
-            ax.add_patch(circle)
+            self.ax.add_patch(circle)
+            self.ax.text(x, y, label, ha="center", va="center", fontsize=8, zorder=3)
 
-            # Texto dentro del círculo
-            ax.text(x, y, label, ha="center", va="center", fontsize=8, zorder=3)
-
-        # 6) ajustar límites y mostrar en Toplevel
+        # ajustar límites
         xs = [p[0] for p in scaled.values()]
         ys = [p[1] for p in scaled.values()]
         if xs and ys:
-            margin_x = spacing_x
-            margin_y = spacing_y
-            ax.set_xlim(min(xs) - margin_x, max(xs) + margin_x)
-            ax.set_ylim(min(ys) - margin_y, max(ys) + margin_y)
+            self.ax.set_xlim(min(xs) - spacing_x, max(xs) + spacing_x)
+            self.ax.set_ylim(min(ys) - spacing_y, max(ys) + spacing_y)
 
-        win = tk.Toplevel(self.root)
-        canvas = FigureCanvasTkAgg(fig, master=win)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        self.ax.set_title("Árbol AVL de Obstáculos")
+        self.ax.axis("off")
+
+        # refrescar canvas
+        self.tree_canvas.draw()
+        self.tree_canvas.flush_events()
+        self.tree_window.update_idletasks()
+
+
 
 # --------- Launch interface ---------
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ class App:
             tipo = obs.get("tipo", obs.get("type", "obstaculo"))
             self.tree.root = self.tree.insert(self.tree.root, value, tipo)
 
-
+    #dele an existen obstacle
     def _delete(self, node_to_delete):
         # Case 1: node is a leaf (no children)
         if node_to_delete.left is None and node_to_delete.right is None:
@@ -45,6 +45,11 @@ class App:
         else:
             self.changeNodePosition(node_to_delete, node_to_delete.right)
     
+    #search for an specific obstacle
+    def search_obstacle(self, x1, y1, x2, y2, tipo):
+        key = (x1, y1, x2, y2, tipo)
+        return self.tree.search(self.tree.root, key)
+
     # perform a simple rotation to left
     def rotate_left(self, current_root):
         new_subroot = current_root.right
