@@ -19,6 +19,9 @@ class GraphicInterface:
         self.tree = AVLTree()
         self.app = None
 
+        # Desplazamiento horizontal del fondo
+        self.road_offset = 0  
+
         # Buttons frame
         frame = tk.Frame(root)
         frame.pack(pady=10)
@@ -52,6 +55,7 @@ class GraphicInterface:
             "hueco": load_icon("assets/hole.png"),
             "aceite": load_icon("assets/oil.png"),
             "peaton": load_icon("assets/human.png"),
+            "road": load_icon("assets\stone.png"),
         }
 
         self.canvas = tk.Canvas(root, width=800, height=300, bg="white")
@@ -173,8 +177,14 @@ class GraphicInterface:
 
     def draw_game(self):
         self.canvas.delete("all")
-        # Road
-        self.canvas.create_line(0,250,800,250,fill="black",width=3)
+        # Actualiza el desplazamiento del fondo
+        self.road_offset = (self.road_offset + self.app.car.speed) % 800  # Ajusta 800 al ancho de tu imagen
+
+        # Dibuja el fondo repetido para cubrir el canvas
+        for i in range(2):  # Dibuja dos veces para cubrir el ancho
+            x = -self.road_offset + i * 800
+            self.canvas.create_image(x, 0, image=self.icons["road"], anchor="nw")
+
         # Car
         car_x = 50
         car_y = 250 - self.app.car.y * 80 - self.app.car.jump_offset
