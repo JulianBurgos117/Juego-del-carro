@@ -1,171 +1,92 @@
-
+# app/app.py
 from app.car import Car
-#this is for the game logic manager
 
 class App:
+    """
+    Game logic coordinator — moves the car, checks collisions and manages obstacles via AVLTree.
+    """
+
     def __init__(self, config, tree, gui=None):
-        self.config = config
+        self.config = config or {}
         self.tree = tree
-        self.gui = gui  # 👈 guardamos referencia a la interfaz gráfica
+        self.gui = gui
         self.car = Car(
-            color=config.get("car_color", "blue"),
-            speed=config.get("car_speed", 5),
-            jump_height=config.get("jump_height", 3),
+            color=self.config.get("car_color", "blue"),
+            speed=self.config.get("car_speed", 5),
+            jump_height=self.config.get("jump_height", 3)
         )
-        self.road_length = config.get("road_length", 1000)
-        self.refresh_time = config.get("refresh_time", 200)
+        self.road_length = self.config.get("road_length", 1000)
+        self.refresh_time = self.config.get("refresh_time", 200)
 
     def load_obstacles(self, obstacles_list):
-        #Load obstacles from a list into the AVL tree.
         for obs in obstacles_list:
             value = (obs["x1"], obs["y1"], obs["x2"], obs["y2"])
-            tipo = obs.get("tipo", obs.get("tipo", "obstaculo"))
+            tipo = obs.get("tipo", "obstaculo")
             self.tree.root = self.tree.insert(self.tree.root, value, tipo)
 
     def update_game(self):
-        """
-        Update the game state:
-        - Move the car forward
-        - Update jump status
-        - Check for collisions
-        - End the game if energy is depleted
-        """
         self.car.move_forward()
         self.car.update_jump()
         self.check_collision()
 
         if self.car.energy <= 0:
-            self.end_game("⚠️ Energía agotada")
-            return
+            self.end_game("Energy depleted")
+
+    def rect_collision(self, car_rect, obs_rect):
+        cx1, cy1, cx2, cy2 = car_rect
+        ox1, oy1, ox2, oy2 = obs_rect
+        return (cx1 < ox2 and cx2 > ox1 and cy1 < oy2 and cy2 > oy1)
 
     def check_collision(self):
-        """Check if the car collides with any visible obstacle.
-            If the car is jumping, collisions are ignored."""
-        visibles = self.tree.range_query(
-            self.tree.root,
-            self.car.x, self.car.x + 40,  # rango horizontal del carro
-            self.car.y, self.car.y        # carril actual
-        )
+        """
+        Check collisions using rectangle intersection.
+        Car rectangle is built from car.x and car.y (lane).
+        """
+        # define car rectangle: x range [car.x, car.x + width], y as lane coordinate
+        # Use width and height heuristics — adjust if needed
+        car_width = 40
+        car_height = 1  # lane height conceptual (we compare lanes by integer)
+        car_x1 = self.car.x
+        car_x2 = self.car.x + car_width
+        # For y we map lane number to simple range: y * 1 ... y * 1 + 1
+        car_y1 = self.car.y
+        car_y2 = self.car.y + 1
 
-        #   Collisions are ignored while jumping
+        visibles = self.tree.range_query(self.tree.root, self.car.x, self.car.x + 200, self.car.y, self.car.y)
+
+        # Collision detection
         if not self.car.is_jumping:
             for obs in visibles:
                 ox1, oy1, ox2, oy2 = obs["x1"], obs["y1"], obs["x2"], obs["y2"]
 
-                # 🔹 Colisión
-                if ox1 <= self.car.x <= ox2 and self.car.y == oy1:
-                    print(f"💥 Colisión detectada en ({ox1},{oy1}) - eliminando nodo")
-                    self.car.collide(obs)
-                    self.tree.root = self.tree.delete(self.tree.root, (ox1, oy1, ox2, oy2))
+                # Check X overlap (car has width ~40)
+                if ox1 <= self.car.x + 40 and self.car.x <= ox2:
+                    # Check same lane (y)
+                    if self.car.y in (oy1, oy2):
+                        print(f"💥 Collision at ({ox1},{oy1}) - removing node")
+                        self.car.collide(obs)
+                        self.tree.root = self.tree.delete(self.tree.root, (ox1, oy1, ox2, oy2))
 
-                    # Refresh AVL
-                    if self.gui:
-                        self.gui.show_tree()
+                        if self.gui:
+                            self.gui.show_tree()
 
-        # Remove obstacles that are already behind the car
-        all_nodes = list(self.tree.inorder(self.tree.root))
-        for node in all_nodes:
+        # remove obstacles behind car
+        for node in list(self.tree.inorder(self.tree.root)):
             x1, y1, x2, y2 = node.value
-            if x2 < self.car.x:  # Passed obstacle
-                print(f"⬅️ Obstáculo en ({x1},{y1}) quedó atrás - eliminando nodo")
+            if x2 < self.car.x:
                 self.tree.root = self.tree.delete(self.tree.root, node.value)
-
-                # refresh AVL
                 if self.gui:
                     self.gui.show_tree()
 
-    #delete an existen obstacle
-    def _delete(self, node_to_delete):
-        # Case 1: node is a leaf (no children)
-        if node_to_delete.left is None and node_to_delete.right is None:
-            self.changeNodePosition(node_to_delete, None)
-            return
-
-        # Case 2: node has two children
-        if node_to_delete.left is not None and node_to_delete.right is not None:
-            predecessor = self._getPredecessor(node_to_delete)
-            if predecessor.parent != node_to_delete:  # predecessor is not a direct child
-                self.changeNodePosition(predecessor, predecessor.left)
-                predecessor.left = node_to_delete.left
-                predecessor.left.parent = predecessor
-            self.changeNodePosition(node_to_delete, predecessor)
-            predecessor.right = node_to_delete.right
-            predecessor.right.parent = predecessor
-            return
-
-        # Case 3: node has only one child
-        if node_to_delete.left is not None:
-            self.changeNodePosition(node_to_delete, node_to_delete.left)
-        else:
-            self.changeNodePosition(node_to_delete, node_to_delete.right)
-    
-    #search for an specific obstacle
-    def search_obstacle(self, x1, y1, x2, y2, tipo):
-        key = (x1, y1, x2, y2, tipo)
-        return self.tree.search(self.tree.root, key)
-
-    # perform a simple rotation to left
-    def rotate_left(self, current_root):
-        new_subroot = current_root.right
-        current_root.right = new_subroot.left
-        if new_subroot.left is not None:
-            new_subroot.left.parent = current_root
-        new_subroot.parent = current_root.parent
-        if current_root.parent is None:
-            self.tree.root = new_subroot
-        elif current_root == current_root.parent.left:
-            current_root.parent.left = new_subroot
-        else:
-            current_root.parent.right = new_subroot
-        new_subroot.left = current_root
-        current_root.parent = new_subroot
-        self.update_heights()
-
-    # perform a simple rotation to right
-    def rotate_right(self, current_root):
-        new_subroot = current_root.left
-        current_root.left = new_subroot.right
-        if new_subroot.right is not None:
-            new_subroot.right.parent = current_root
-        new_subroot.parent = current_root.parent
-        if current_root.parent is None:
-            self.tree.root = new_subroot
-        elif current_root == current_root.parent.right:
-            current_root.parent.right = new_subroot
-        else:
-            current_root.parent.left = new_subroot
-        new_subroot.right = current_root
-        current_root.parent = new_subroot
-        self.update_heights()
-        
-    # Rotación doble izquierda-derecha
-    def rotate_left_right(self, x):
-        self.rotate_left(x.left)
-        self.rotate_right(x)
-
-    # Rotación doble derecha-izquierda
-    def rotate_right_left(self, x):
-        self.rotate_right(x.right)
-        self.rotate_left(x)
-
-    # Insert a new obstacle
     def insert_obstacle(self, x1, y1, x2, y2, tipo="normal"):
-        try:
-            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-        except ValueError:
-            raise ValueError(f"Coordenadas inválidas: {x1}, {y1}, {x2}, {y2}")
-
+        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
         value = (x1, y1, x2, y2)
         self.tree.root = self.tree.insert(self.tree.root, value, tipo)
 
-
-
-
-
-
-
-
-
-
-
-
+    def end_game(self, msg):
+        if self.gui:
+            # Use messagebox in GUI thread
+            from tkinter import messagebox
+            messagebox.showinfo("Game Over", msg)
+        else:
+            print("Game Over:", msg)
