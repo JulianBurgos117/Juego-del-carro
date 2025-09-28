@@ -174,10 +174,12 @@ class GraphicInterface:
     def draw_game(self):
         self.canvas.delete("all")
         # Road
-        self.canvas.create_line(0,250,800,250,fill="black",width=3)
+        self.canvas.create_line(0, 250, 800, 250, fill="black", width=3)
+
         # Car
         car_x = 50
-        car_y = 250 - self.app.car.y * 80 - self.app.car.jump_offset
+        base_y = 250 - self.app.car.y * 80
+        car_y = base_y + self.app.car.get_jump_offset()   # 👈 se aplica el salto
         icon_key = self.app.car.get_icon_key()
         self.canvas.create_image(car_x, car_y, image=self.icons[icon_key], anchor="nw")
         # Obstacles
