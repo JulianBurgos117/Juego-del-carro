@@ -32,6 +32,7 @@ class GraphicInterface:
         tk.Button(frame, text="Preorder", command=self.show_preorder).grid(row=1, column=1, padx=5, pady=5)
         tk.Button(frame, text="Postorder", command=self.show_postorder).grid(row=1, column=2, padx=5, pady=5)
         tk.Button(frame, text="BFS", command=self.show_bfs).grid(row=1, column=3, padx=5, pady=5)
+        tk.Button(frame, text="Restart", command=self.restart_game).grid(row=0, column=5, padx=5)
 
         # Bind keys (guard against app None)
         self.root.bind("<Up>", lambda e: self._safe_move_up())
@@ -347,6 +348,39 @@ class GraphicInterface:
         nodes = list(self.tree.bfs(self.tree.root))
         self._show_traversal(nodes, "BFS Traversal")
 
+    def restart_game(self):
+        if not self.app:
+            messagebox.showwarning("Warning", "Please load configuration first.")
+            return
+        
+        # Detener loop del juego si estaba corriendo
+        self.game_running = False  
+        
+        # Crear nuevo árbol y reiniciar app con la misma config
+        self.tree = AVLTree()
+        config = self.config_mgr.get_config()
+        self.app = App(config, self.tree, gui=self)
+        self.app.load_obstacles(self.config_mgr.get_obstacles())
+        
+        # Reiniciar carro
+        self.app.car.x = 0
+        self.app.car.y = 0
+        self.app.car.energy = 100
+        self.app.car.is_jumping = False
+        self.app.car.jump_offset = 0
+        self.app.car.jump_velocity = 0
+        
+        # Limpiar canvas
+        self.canvas.delete("all")
+        
+        # Redibujar estado inicial (carro y obstáculos)
+        self.draw_game()
+        
+        # También refrescar AVL si estaba abierto
+        if hasattr(self, "tree_window") and self.tree_window.winfo_exists():
+            self.show_tree()
+        
+        messagebox.showinfo("Restart", "Game restarted successfully.")
 
 if __name__ == "__main__":
     root = tk.Tk()
