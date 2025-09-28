@@ -43,6 +43,33 @@ class graphicInterface:
         btn_tree = tk.Button(frame, text="Ver AVL", command=self.show_tree)
         btn_tree.grid(row=0, column=4, padx=5)
 
+        btn_inorder = tk.Button(frame, text="Inorder", command=self.show_inorder)
+        btn_inorder.grid(row=1, column=0, padx=5, pady=5)
+
+        btn_preorder = tk.Button(frame, text="Preorder", command=self.show_preorder)
+        btn_preorder.grid(row=1, column=1, padx=5, pady=5)
+
+        btn_postorder = tk.Button(frame, text="Postorder", command=self.show_postorder)
+        btn_postorder.grid(row=1, column=2, padx=5, pady=5)
+
+        btn_bfs = tk.Button(frame, text="BFS", command=self.show_bfs)
+        btn_bfs.grid(row=1, column=3, padx=5, pady=5)
+
+        self.root.bind("<Up>", lambda e: self.app.car.move_up())
+        self.root.bind("<Down>", lambda e: self.app.car.move_down())
+        self.root.bind("<space>", lambda e: self.app.car.jump())
+
+        # ===== Cargar imágenes =====
+        self.icons = {
+            "car": tk.PhotoImage(file="assets/car_blue.png").subsample(10, 10),
+            "car_jump": tk.PhotoImage(file="assets/car_green.png").subsample(10, 10),
+            "roca": tk.PhotoImage(file="assets/stone.png").subsample(6, 6),
+            "cono": tk.PhotoImage(file="assets/traffic_cone.png").subsample(9, 9),
+            "hueco": tk.PhotoImage(file="assets/hole.png").subsample(9, 9),
+            "aceite": tk.PhotoImage(file="assets/oil.png").subsample(6, 6),
+            "peaton": tk.PhotoImage(file="assets/human.png").subsample(6, 6),
+        }   
+
         # ===== Canvas for game =====
         self.canvas = tk.Canvas(root, width=800, height=300, bg="white")
         self.canvas.pack()
@@ -56,7 +83,8 @@ class graphicInterface:
         if filename:
             with open(filename, "r") as f:
                 data = json.load(f)
-                self.app = App(data["config"], self.tree)
+                # 👇 aquí le paso la referencia de la GUI
+                self.app = App(data["config"], self.tree, gui=self)  
                 self.app.load_obstacles(data["obstacles"])
             self.json_file = filename  # Actualiza la ruta para guardar cambios
             messagebox.showinfo("Éxito", "Configuración y obstáculos cargados.")
@@ -155,13 +183,11 @@ class graphicInterface:
             obstaculo = obstacles[index]
 
             # deleate from tree
-            nodo = self.app.search_obstacle(
-                obstaculo["x1"], obstaculo["y1"],
-                obstaculo["x2"], obstaculo["y2"],
-                obstaculo["tipo"]
+            # eliminar del árbol AVL (usando coordenadas)
+            self.tree.root = self.tree.delete(
+                self.tree.root,
+                (obstaculo["x1"], obstaculo["y1"], obstaculo["x2"], obstaculo["y2"])
             )
-            if nodo:
-                self.app._delete(nodo)
 
             # delete from JSON
             obstacles.pop(index)
@@ -210,6 +236,11 @@ class graphicInterface:
         if not self.app:
             messagebox.showwarning("Atención", "Primero cargue un archivo JSON.")
             return
+
+        if getattr(self, "game_running", False):  # ya está corriendo
+            return
+
+        self.game_running = True
         self.game_loop()
 
 
@@ -219,6 +250,7 @@ class graphicInterface:
             self.draw_game()
             self.root.after(self.app.refresh_time, self.game_loop)
         else:
+            self.game_running = False
             messagebox.showinfo("Juego terminado", "Fin del juego")
 
     #NOT YET
@@ -229,11 +261,12 @@ class graphicInterface:
         self.canvas.create_line(0, 250, 800, 250, fill="black", width=3)
 
         # Dibujar carro
+        # Dibujar carro como imagen
+        # Dibujar carro (cambia de color al saltar)
         car_x = 50
         car_y = 250 - self.app.car.y * 80
-        self.canvas.create_rectangle(
-            car_x, car_y - 20, car_x + 40, car_y + 20, fill=self.app.car.color
-        )
+        car_icon = self.icons["car_jump"] if self.app.car.is_jumping else self.icons["car"]
+        self.canvas.create_image(car_x, car_y, image=car_icon, anchor="nw")
 
         # Obstáculos visibles
         visibles = self.tree.range_query(
@@ -245,16 +278,36 @@ class graphicInterface:
         )
 
         for obs in visibles:
-            ox, oy = obs.value
-            screen_x = 50 + (ox - self.app.car.x)  # carro fijo en x=50
+            ox, oy = obs["x1"], obs["y1"]  # diccionario, no nodo
+            screen_x = 50 + (ox - self.app.car.x)
             screen_y = 250 - oy * 80
-            self.canvas.create_rectangle(
-                screen_x, screen_y - 20, screen_x + 30, screen_y + 20, fill="red"
-            )
+            tipo = obs["tipo"]
+            if tipo in self.icons:
+                self.canvas.create_image(screen_x, screen_y - 20, image=self.icons[tipo], anchor="nw")
+            else:
+                # fallback si no hay icono definido
+                self.canvas.create_rectangle(
+                    screen_x, screen_y - 20, screen_x + 30, screen_y + 20, fill="red"
+                )
 
         # Energía
         self.canvas.create_text(700, 20, text=f"Energía: {self.app.car.energy}%", fill="blue")
 
+        # Dibujar barra de energía
+        bar_x, bar_y = 10, 10  # esquina superior izquierda
+        bar_width, bar_height = 200, 20
+
+        # Fondo gris
+        self.canvas.create_rectangle(bar_x, bar_y, bar_x + bar_width, bar_y + bar_height, fill="gray")
+
+        # Energía restante (verde → rojo)
+        energy_ratio = max(0, self.app.car.energy) / 100
+        color = "green" if energy_ratio > 0.5 else "orange" if energy_ratio > 0.2 else "red"
+        self.canvas.create_rectangle(bar_x, bar_y, bar_x + bar_width * energy_ratio, bar_y + bar_height, fill=color)
+
+        # Texto con porcentaje
+        self.canvas.create_text(bar_x + bar_width / 2, bar_y + bar_height / 2,
+                                text=f"Energía: {self.app.car.energy}%", fill="white")
 
     # Show AVL
     def show_tree(self):
@@ -262,23 +315,18 @@ class graphicInterface:
             messagebox.showwarning("Atención", "El árbol está vacío.")
             return
 
-        # Create window if it does not exist or was closed
+        # Crear o reusar la ventana
         if not hasattr(self, "tree_window") or not self.tree_window.winfo_exists():
             self.tree_window = tk.Toplevel(self.root)
             self.tree_window.title("Árbol AVL de Obstáculos")
+            self.fig, self.ax = plt.subplots(figsize=(6, 4))
+            self.tree_canvas = FigureCanvasTkAgg(self.fig, master=self.tree_window)
+            self.tree_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         else:
-            # If it already exists, delete the old canvas
-            for widget in self.tree_window.winfo_children():
-                widget.destroy()
+            # 🚩 Limpiar figura existente en lugar de crear nuevas
+            self.ax.clear()
 
-        # Create a new figure and a new canvas always
-        self.fig, self.ax = plt.subplots(figsize=(6, 4))
-        self.tree_canvas = FigureCanvasTkAgg(self.fig, master=self.tree_window)
-        self.tree_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-
-        #   Redraw entire tree
-  
-        # calculate positions using in-order traversal
+        # === Redibujar árbol completo ===
         positions = {}
         counter = {"x": 0, "max_depth": 0}
 
@@ -293,58 +341,93 @@ class graphicInterface:
 
         inorder(self.tree.root)
 
-        # climb positions
-        spacing_x = 2.0
-        spacing_y = 2.5
-        scaled = {}
-        for node, (xi, depth) in positions.items():
-            x = xi * spacing_x
-            y = -depth * spacing_y
-            scaled[node] = (x, y)
+        spacing_x, spacing_y = 2.0, 2.5
+        scaled = {node: (xi * spacing_x, -depth * spacing_y)
+                for node, (xi, depth) in positions.items()}
 
-        # draw edges
+        # Dibujar conexiones
         for node, (x, y) in scaled.items():
             if node.left and node.left in scaled:
                 xl, yl = scaled[node.left]
-                self.ax.plot([x, xl], [y, yl], color="gray", linewidth=1, zorder=1)
+                self.ax.plot([x, xl], [y, yl], color="gray", linewidth=1)
             if node.right and node.right in scaled:
                 xr, yr = scaled[node.right]
-                self.ax.plot([x, xr], [y, yr], color="gray", linewidth=1, zorder=1)
+                self.ax.plot([x, xr], [y, yr], color="gray", linewidth=1)
 
-        # draw nodes
+        # Dibujar nodos
         for node, (x, y) in scaled.items():
-            val = node.value
-            tipo = getattr(node, "type", "")
+            x1, y1, x2, y2 = node.value
+            label = f"({x1},{y1})-({x2},{y2})\n{node.type}"
             balance = self.tree.get_balance(node)
-
-            # label
-            if isinstance(val, (list, tuple)) and len(val) == 4:
-                label = f"{val[0]},{val[1]}-{val[2]},{val[3]}\n{tipo}"
-            else:
-                label = str(val) + ("\n" + tipo if tipo else "")
             label += f"\nBF={balance}"
 
-            # circle
-            circle = plt.Circle((x, y), radius=0.6, edgecolor="black",
-                                facecolor="lightblue", zorder=2)
+            circle = plt.Circle((x, y), radius=0.6, edgecolor="black", facecolor="lightblue")
             self.ax.add_patch(circle)
-            self.ax.text(x, y, label, ha="center", va="center", fontsize=8, zorder=3)
+            self.ax.text(x, y, label, ha="center", va="center", fontsize=7)
 
-        # adjust limits
-        xs = [p[0] for p in scaled.values()]
-        ys = [p[1] for p in scaled.values()]
-        if xs and ys:
+        # Ajustes
+        if scaled:
+            xs, ys = zip(*scaled.values())
             self.ax.set_xlim(min(xs) - spacing_x, max(xs) + spacing_x)
             self.ax.set_ylim(min(ys) - spacing_y, max(ys) + spacing_y)
 
-        self.ax.set_title("Árbol AVL de Obstáculos")
         self.ax.axis("off")
+        self.ax.set_title("Árbol AVL de Obstáculos")
 
-        # refreshr canvas
+        # 🚩 Refrescar el canvas existente
         self.tree_canvas.draw()
-        self.tree_canvas.flush_events()
         self.tree_window.update_idletasks()
 
+    def end_jump(self):
+        self.app.car.end_jump()
+
+    def _show_traversal(self, nodes, title):
+        if not nodes:
+            messagebox.showinfo("Recorrido", "El árbol está vacío.")
+            return
+
+        # Nueva ventana
+        window = tk.Toplevel(self.root)
+        window.title(title)
+
+        fig, ax = plt.subplots(figsize=(6, 2))
+        canvas = FigureCanvasTkAgg(fig, master=window)
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        # Dibujar nodos en fila
+        x = 0
+        for node in nodes:
+            val = node.value
+            tipo = getattr(node, "type", "")
+            label = f"{val}\n{tipo}"
+            circle = plt.Circle((x, 0), radius=0.4, edgecolor="black", facecolor="lightgreen")
+            ax.add_patch(circle)
+            ax.text(x, 0, label, ha="center", va="center", fontsize=7)
+            x += 1
+
+        ax.set_xlim(-1, x)
+        ax.set_ylim(-1, 1)
+        ax.axis("off")
+        ax.set_title(title)
+
+        canvas.draw()
+        window.update_idletasks()
+
+    def show_inorder(self):
+        nodes = list(self.tree.inorder(self.tree.root))
+        self._show_traversal(nodes, "Recorrido Inorder")
+
+    def show_preorder(self):
+        nodes = list(self.tree.preorder(self.tree.root))
+        self._show_traversal(nodes, "Recorrido Preorder")
+
+    def show_postorder(self):
+        nodes = list(self.tree.postorder(self.tree.root))
+        self._show_traversal(nodes, "Recorrido Postorder")
+
+    def show_bfs(self):
+        nodes = list(self.tree.bfs(self.tree.root))
+        self._show_traversal(nodes, "Recorrido BFS")
 
 
 # Launch interface

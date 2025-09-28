@@ -116,10 +116,66 @@ class AVLTree:
 
 
     def _getPredecessor(self, node):
-
+        #obtain the max node on the left
         current = node.left
         while current and current.right:
             current = current.right
+        return current
+
+    # Delete
+    def delete(self, root, value):
+        """delete one node and re balance the tree"""
+        if not root:
+            return root
+
+        # Compare values
+        cmp = self.compare(value, root.value)
+        if cmp < 0:
+            root.left = self.delete(root.left, value)
+        elif cmp > 0:
+            root.right = self.delete(root.right, value)
+        else:
+            # this is the node to delete
+            if not root.left:
+                return root.right
+            elif not root.right:
+                return root.left
+
+            # node with 2 children → search suscesor (min on the right side)
+            temp = self.get_min(root.right)
+            root.value = temp.value
+            root.type = temp.type
+            root.right = self.delete(root.right, temp.value)
+
+        # if has only one node
+        if not root:
+            return root
+
+        # update height
+        root.height = 1 + max(self.get_height(root.left), self.get_height(root.right))
+
+        # balance
+        balance = self.get_balance(root)
+
+        # rotations
+        if balance > 1 and self.get_balance(root.left) >= 0:
+            return self.right_rotate(root)
+        if balance > 1 and self.get_balance(root.left) < 0:
+            root.left = self.left_rotate(root.left)
+            return self.right_rotate(root)
+        if balance < -1 and self.get_balance(root.right) <= 0:
+            return self.left_rotate(root)
+        if balance < -1 and self.get_balance(root.right) > 0:
+            root.right = self.right_rotate(root.right)
+            return self.left_rotate(root)
+
+        return root
+
+    def get_min(self, node):
+        """return the node with the less value in the tree"""
+        current = node
+        while current.left:
+            current = current.left
         return current
 
     # ===== routes =====
@@ -171,12 +227,12 @@ class AVLTree:
 
         x1, y1, x2, y2 = root.value  # coordenadas del obstáculo
 
-        # Chequeo de intersección: si el obstáculo toca el área visible
+        # insertion check: if the obstacle touch the visible area
         if not (x2 < x_min or x1 > x_max or y2 < y_min or y1 > y_max):
             result.append({
                 "x1": x1, "y1": y1,
                 "x2": x2, "y2": y2,
-                "tipo": root.tipo
+                "tipo": root.type
             })
 
         # Recorremos ramas del árbol según la comparación

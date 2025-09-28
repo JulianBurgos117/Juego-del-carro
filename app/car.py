@@ -1,50 +1,53 @@
 class Car:
     def __init__(self, color="blue", energy=100, speed=5, jump_height=3):
         self.x = 0
-        self.y = 1  # carril medio por defecto
+        self.y = 1  # carril medio por defecto (0 abajo, 1 medio, 2 arriba)
         self.energy = energy
         self.color = color
         self.speed = speed
         self.jump_height = jump_height
         self.is_jumping = False
+        self.jump_ticks = 0  # controla duración del salto
 
     def move_forward(self):
-        pass
+        """Move the car forward automatically along the X-axis"""
+        self.x += self.speed
 
     def move_up(self):
-        pass
+        """Move the car one lane up (maximum is the top lane)."""
+        if self.y < 2:  # máximo carril arriba
+            self.y += 1
 
     def move_down(self):
-        pass
+        """Mover al carril inferior"""
+        if self.y > 0:  # mínimo carril abajo
+            self.y -= 1
 
     def jump(self):
-        pass
+        """Activar salto"""
+        if not self.is_jumping:  # solo salta si no está ya en el aire
+            self.is_jumping = True
+            self.jump_ticks = self.jump_height
+
+    def update_jump(self):
+        """Actualizar estado del salto (decrece el tiempo en el aire)"""
+        if self.is_jumping:
+            self.jump_ticks -= 1
+            if self.jump_ticks <= 0:
+                self.is_jumping = False
 
     def collide(self, obstacle):
-        # reduce energía según tipo
-        pass
-
-
-class App:
-    def __init__(self, config, tree):
-        self.config = config
-        self.tree = tree
-        self.car = Car(
-            color=config.get("car_color", "blue"),
-            speed=config.get("car_speed", 5),
-            jump_height=config.get("jump_height", 3),
-        )
-        self.road_length = config.get("road_length", 1000)
-        self.refresh_time = config.get("refresh_time", 200)
-
-    def load_obstacles(self, obstacles_list):
-        # insertar obstáculos en el AVL
-        pass
-
-    def update_game(self):
-        # mover carro, detectar colisiones
-        pass
-
-    def check_collision(self):
-        # validar colisiones con obstáculos visibles
-        pass
+        """Reducir energía según tipo de obstáculo"""
+        tipo = obstacle.get("tipo", "obstaculo")
+        if tipo == "roca":
+            self.energy -= 20
+        elif tipo == "hueco":
+            self.energy -= 30
+        elif tipo == "cono":
+            self.energy -= 10
+        elif tipo == "aceite":
+            self.energy -= 15
+        elif tipo == "peaton":
+            self.energy -= 50
+        else:
+            self.energy -= 5
