@@ -19,25 +19,26 @@ class Car:
             self.y += 1
 
     def move_down(self):
-        """Mover al carril inferior"""
+        """Move the car one lane up (maximum is the top lane)."""
         if self.y > 0:  # mínimo carril abajo
             self.y -= 1
 
     def jump(self):
-        """Activar salto"""
+        """Move the car one lane up (maximum is the top lane)."""
         if not self.is_jumping:  # solo salta si no está ya en el aire
             self.is_jumping = True
             self.jump_ticks = self.jump_height
 
     def update_jump(self):
-        """Actualizar estado del salto (decrece el tiempo en el aire)"""
+        """AUpdate the jump status by decreasing the jump counter.
+        Once it reaches 0, the car lands back on the ground."""
         if self.is_jumping:
             self.jump_ticks -= 1
             if self.jump_ticks <= 0:
                 self.is_jumping = False
 
     def collide(self, obstacle):
-        """Reducir energía según tipo de obstáculo"""
+        """reduce the energy depend of the obstacle type"""
         tipo = obstacle.get("tipo", "obstaculo")
         if tipo == "roca":
             self.energy -= 20

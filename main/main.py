@@ -11,12 +11,22 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 #muchacho si va a ejecutar main, desde una terminal pegue y ejecute esto: py -m main.main
 class graphicInterface:
+    """
+    Graphical interface for the Car Game with AVL Tree.
+    Handles user interaction, obstacle management, game drawing, and AVL visualization.
+    """
     def auto_refresh_tree(self, interval=1000):
+        """
+        Automatically refresh the AVL tree visualization every given interval (ms).
+        """
         self.show_tree()
         self.root.after(interval, self.auto_refresh_tree, interval)
 
 
     def __init__(self, root):
+        """
+        Initialize the main window, buttons, event bindings, and canvas.
+        """
         self.root = root
         self.root.title("Juego Carrito con AVL")
         self.json_file = "json\config.json"
@@ -55,11 +65,12 @@ class graphicInterface:
         btn_bfs = tk.Button(frame, text="BFS", command=self.show_bfs)
         btn_bfs.grid(row=1, column=3, padx=5, pady=5)
 
+        # Key bindings for car movement
         self.root.bind("<Up>", lambda e: self.app.car.move_up())
         self.root.bind("<Down>", lambda e: self.app.car.move_down())
         self.root.bind("<space>", lambda e: self.app.car.jump())
 
-        # ===== Cargar imágenes =====
+        # ===== Load icons =====
         self.icons = {
             "car": tk.PhotoImage(file="assets/car_blue.png").subsample(10, 10),
             "car_jump": tk.PhotoImage(file="assets/car_green.png").subsample(10, 10),
@@ -74,8 +85,12 @@ class graphicInterface:
         self.canvas = tk.Canvas(root, width=800, height=300, bg="white")
         self.canvas.pack()
 
-    # JSON
+    
+    # ============================
+    # JSON Loading and Saving
+    # ============================
     def load_json(self):
+        #Load configuration and obstacles from a JSON file.
         filename = filedialog.askopenfilename(
             title="Selecciona el archivo de configuración",
             filetypes=[("Archivos JSON", "*.json")]
@@ -92,6 +107,7 @@ class graphicInterface:
 
     # New Obstacle
     def insert_node(self):
+        #Open a popup window to insert a new obstacle into the tree and JSON.
         if not self.app:
             messagebox.showwarning("Atención", "Primero cargue la configuración del juego.")
             return
@@ -143,6 +159,7 @@ class graphicInterface:
 
     # Delete Obstacle
     def delete_node(self):
+        #Open a popup window to delete an obstacle from the tree and JSON.
         if not self.app:
             messagebox.showwarning("Atención", "Primero cargue la configuración del juego.")
             return
@@ -233,6 +250,7 @@ class graphicInterface:
 
     # Game
     def start_game(self):
+        #Start the game loop if configuration has been loaded.
         if not self.app:
             messagebox.showwarning("Atención", "Primero cargue un archivo JSON.")
             return
@@ -245,6 +263,7 @@ class graphicInterface:
 
 
     def game_loop(self):
+        #Main game loop: update state, redraw, and repeat until game ends
         if self.app.car.x < self.app.road_length and self.app.car.energy > 0:
             self.app.update_game()
             self.draw_game()
@@ -255,20 +274,19 @@ class graphicInterface:
 
     #NOT YET
     def draw_game(self):
+        #Draw the road, car, obstacles, and energy bar on the canvas
         self.canvas.delete("all")
 
-        # Dibujar carretera
+        # paint road 
         self.canvas.create_line(0, 250, 800, 250, fill="black", width=3)
 
-        # Dibujar carro
-        # Dibujar carro como imagen
-        # Dibujar carro (cambia de color al saltar)
+        # oaint the car
         car_x = 50
         car_y = 250 - self.app.car.y * 80
         car_icon = self.icons["car_jump"] if self.app.car.is_jumping else self.icons["car"]
         self.canvas.create_image(car_x, car_y, image=car_icon, anchor="nw")
 
-        # Obstáculos visibles
+        # visible obstacles 
         visibles = self.tree.range_query(
             self.tree.root,
             self.app.car.x,
@@ -290,14 +308,13 @@ class graphicInterface:
                     screen_x, screen_y - 20, screen_x + 30, screen_y + 20, fill="red"
                 )
 
-        # Energía
+        # Energy
         self.canvas.create_text(700, 20, text=f"Energía: {self.app.car.energy}%", fill="blue")
 
-        # Dibujar barra de energía
+        # draw the energy bar
         bar_x, bar_y = 10, 10  # esquina superior izquierda
         bar_width, bar_height = 200, 20
 
-        # Fondo gris
         self.canvas.create_rectangle(bar_x, bar_y, bar_x + bar_width, bar_y + bar_height, fill="gray")
 
         # Energía restante (verde → rojo)
@@ -315,7 +332,7 @@ class graphicInterface:
             messagebox.showwarning("Atención", "El árbol está vacío.")
             return
 
-        # Crear o reusar la ventana
+        # create o reuse the window
         if not hasattr(self, "tree_window") or not self.tree_window.winfo_exists():
             self.tree_window = tk.Toplevel(self.root)
             self.tree_window.title("Árbol AVL de Obstáculos")
@@ -323,7 +340,7 @@ class graphicInterface:
             self.tree_canvas = FigureCanvasTkAgg(self.fig, master=self.tree_window)
             self.tree_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         else:
-            # 🚩 Limpiar figura existente en lugar de crear nuevas
+            #  clear figure
             self.ax.clear()
 
         # === Redibujar árbol completo ===
@@ -345,7 +362,7 @@ class graphicInterface:
         scaled = {node: (xi * spacing_x, -depth * spacing_y)
                 for node, (xi, depth) in positions.items()}
 
-        # Dibujar conexiones
+        # draw conections
         for node, (x, y) in scaled.items():
             if node.left and node.left in scaled:
                 xl, yl = scaled[node.left]
@@ -354,7 +371,7 @@ class graphicInterface:
                 xr, yr = scaled[node.right]
                 self.ax.plot([x, xr], [y, yr], color="gray", linewidth=1)
 
-        # Dibujar nodos
+        # draw nodes
         for node, (x, y) in scaled.items():
             x1, y1, x2, y2 = node.value
             label = f"({x1},{y1})-({x2},{y2})\n{node.type}"
@@ -365,7 +382,7 @@ class graphicInterface:
             self.ax.add_patch(circle)
             self.ax.text(x, y, label, ha="center", va="center", fontsize=7)
 
-        # Ajustes
+        # settings
         if scaled:
             xs, ys = zip(*scaled.values())
             self.ax.set_xlim(min(xs) - spacing_x, max(xs) + spacing_x)
@@ -374,7 +391,7 @@ class graphicInterface:
         self.ax.axis("off")
         self.ax.set_title("Árbol AVL de Obstáculos")
 
-        # 🚩 Refrescar el canvas existente
+        # refresh the canvas
         self.tree_canvas.draw()
         self.tree_window.update_idletasks()
 
@@ -382,11 +399,12 @@ class graphicInterface:
         self.app.car.end_jump()
 
     def _show_traversal(self, nodes, title):
+        #Helper to show a traversal (Inorder, Preorder, Postorder, BFS).
         if not nodes:
             messagebox.showinfo("Recorrido", "El árbol está vacío.")
             return
 
-        # Nueva ventana
+        # New window
         window = tk.Toplevel(self.root)
         window.title(title)
 
@@ -394,7 +412,7 @@ class graphicInterface:
         canvas = FigureCanvasTkAgg(fig, master=window)
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-        # Dibujar nodos en fila
+        # Draw nodes in line
         x = 0
         for node in nodes:
             val = node.value
@@ -414,18 +432,22 @@ class graphicInterface:
         window.update_idletasks()
 
     def show_inorder(self):
+        """Show Inorder traversal in a new window."""
         nodes = list(self.tree.inorder(self.tree.root))
         self._show_traversal(nodes, "Recorrido Inorder")
 
     def show_preorder(self):
+        """Show Preorder traversal in a new window."""
         nodes = list(self.tree.preorder(self.tree.root))
         self._show_traversal(nodes, "Recorrido Preorder")
 
     def show_postorder(self):
+        """Show Postorder traversal in a new window."""
         nodes = list(self.tree.postorder(self.tree.root))
         self._show_traversal(nodes, "Recorrido Postorder")
 
     def show_bfs(self):
+        """Show BFS (level order) traversal in a new window."""
         nodes = list(self.tree.bfs(self.tree.root))
         self._show_traversal(nodes, "Recorrido BFS")
 

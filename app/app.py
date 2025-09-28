@@ -1,5 +1,6 @@
 
 from app.car import Car
+#this is for the game logic manager
 
 class App:
     def __init__(self, config, tree, gui=None):
@@ -15,13 +16,20 @@ class App:
         self.refresh_time = config.get("refresh_time", 200)
 
     def load_obstacles(self, obstacles_list):
+        #Load obstacles from a list into the AVL tree.
         for obs in obstacles_list:
             value = (obs["x1"], obs["y1"], obs["x2"], obs["y2"])
             tipo = obs.get("tipo", obs.get("tipo", "obstaculo"))
             self.tree.root = self.tree.insert(self.tree.root, value, tipo)
 
     def update_game(self):
-        """Mover carro y revisar colisiones"""
+        """
+        Update the game state:
+        - Move the car forward
+        - Update jump status
+        - Check for collisions
+        - End the game if energy is depleted
+        """
         self.car.move_forward()
         self.car.update_jump()
         self.check_collision()
@@ -31,14 +39,15 @@ class App:
             return
 
     def check_collision(self):
-        """Verificar si el carro choca con algún obstáculo visible"""
+        """Check if the car collides with any visible obstacle.
+            If the car is jumping, collisions are ignored."""
         visibles = self.tree.range_query(
             self.tree.root,
             self.car.x, self.car.x + 40,  # rango horizontal del carro
             self.car.y, self.car.y        # carril actual
         )
 
-        # Si está saltando, no se revisan colisiones
+        #   Collisions are ignored while jumping
         if not self.car.is_jumping:
             for obs in visibles:
                 ox1, oy1, ox2, oy2 = obs["x1"], obs["y1"], obs["x2"], obs["y2"]
@@ -49,23 +58,23 @@ class App:
                     self.car.collide(obs)
                     self.tree.root = self.tree.delete(self.tree.root, (ox1, oy1, ox2, oy2))
 
-                    # 🔹 Refrescar AVL
+                    # Refresh AVL
                     if self.gui:
                         self.gui.show_tree()
 
-        # 🔹 Limpiar obstáculos que quedaron atrás
+        # Remove obstacles that are already behind the car
         all_nodes = list(self.tree.inorder(self.tree.root))
         for node in all_nodes:
             x1, y1, x2, y2 = node.value
-            if x2 < self.car.x:  # obstáculo ya pasó por completo
+            if x2 < self.car.x:  # Passed obstacle
                 print(f"⬅️ Obstáculo en ({x1},{y1}) quedó atrás - eliminando nodo")
                 self.tree.root = self.tree.delete(self.tree.root, node.value)
 
-                # 🔹 Refrescar AVL
+                # refresh AVL
                 if self.gui:
                     self.gui.show_tree()
 
-    #dele an existen obstacle
+    #delete an existen obstacle
     def _delete(self, node_to_delete):
         # Case 1: node is a leaf (no children)
         if node_to_delete.left is None and node_to_delete.right is None:
