@@ -174,17 +174,23 @@ class GraphicInterface:
 
     def draw_game(self):
         self.canvas.delete("all")
-        # Road
-        self.canvas.create_line(0, 250, 800, 250, fill="black", width=3)
 
-        # Car
+        # === Road background ===
+        self.canvas.create_rectangle(0, 50, 800, 260, fill="gray", outline="")
+
+        # === Lane dividers (white dashed lines) ===
+        for lane_y in [130, 210]:  # separadores entre carriles
+            self.canvas.create_line(0, lane_y, 800, lane_y, fill="white", dash=(15, 10))
+
+        # === Car ===
         car_x = 50
         base_y = 250 - self.app.car.y * 80
-        car_y = base_y + self.app.car.get_jump_offset()   # 👈 se aplica el salto
+        car_y = base_y + self.app.car.get_jump_offset()
         icon_key = self.app.car.get_icon_key()
         self.canvas.create_image(car_x, car_y, image=self.icons[icon_key], anchor="nw")
-        # Obstacles
-        visibles = self.tree.range_query(self.tree.root, self.app.car.x, self.app.car.x+200, 0, 2)
+
+        # === Obstacles ===
+        visibles = self.tree.range_query(self.tree.root, self.app.car.x, self.app.car.x + 200, 0, 2)
         for obs in visibles:
             ox, oy = obs["x1"], obs["y1"]
             screen_x = 50 + (ox - self.app.car.x)
@@ -193,15 +199,16 @@ class GraphicInterface:
             if tipo in self.icons:
                 self.canvas.create_image(screen_x, screen_y - 20, image=self.icons[tipo], anchor="nw")
             else:
-                self.canvas.create_rectangle(screen_x, screen_y-20, screen_x+30, screen_y+20, fill="red")
+                self.canvas.create_rectangle(screen_x, screen_y - 20, screen_x + 30, screen_y + 20, fill="red")
 
-        # Energy bar
-        bar_x, bar_y = 10, 10; bar_w, bar_h = 200, 20
-        self.canvas.create_rectangle(bar_x, bar_y, bar_x+bar_w, bar_y+bar_h, fill="gray")
-        energy_ratio = max(0, self.app.car.energy)/100
-        color = "green" if energy_ratio>0.5 else "orange" if energy_ratio>0.2 else "red"
-        self.canvas.create_rectangle(bar_x, bar_y, bar_x+bar_w*energy_ratio, bar_y+bar_h, fill=color)
-        self.canvas.create_text(bar_x+bar_w/2, bar_y+bar_h/2, text=f"Energy: {self.app.car.energy}%", fill="white")
+        # === Energy bar ===
+        bar_x, bar_y = 10, 10
+        bar_w, bar_h = 200, 20
+        self.canvas.create_rectangle(bar_x, bar_y, bar_x + bar_w, bar_y + bar_h, fill="gray")
+        energy_ratio = max(0, self.app.car.energy) / 100
+        color = "green" if energy_ratio > 0.5 else "orange" if energy_ratio > 0.2 else "red"
+        self.canvas.create_rectangle(bar_x, bar_y, bar_x + bar_w * energy_ratio, bar_y + bar_h, fill=color)
+        self.canvas.create_text(bar_x + bar_w / 2, bar_y + bar_h / 2, text=f"Energy: {self.app.car.energy}%", fill="white")
 
     # AVL visualization
     def show_tree(self):
