@@ -175,73 +175,62 @@ class GraphicInterface:
     def draw_game(self): 
         self.canvas.delete("all")
 
-        # === Parámetros visuales ===
+        # Visual parameters
         canvas_width = 800
         canvas_height = 300
         road_height = 180
         road_top = (canvas_height - road_height) // 2
         road_bottom = road_top + road_height
 
-        # Césped arriba y abajo
+        # Grass up and down
         self.canvas.create_rectangle(0, 0, canvas_width, road_top, fill="#228B22", outline="")
         self.canvas.create_rectangle(0, road_bottom, canvas_width, canvas_height, fill="#228B22", outline="")
 
-        # Gradiente de la carretera
+        # Road gradient
         for i in range(road_top, road_bottom, 8):
             gray = int(90 + (i - road_top) * 1.0)
             shade = f"#{gray:02x}{gray:02x}{gray:02x}"
             y2 = min(i+8, road_bottom)
             self.canvas.create_rectangle(0, i, canvas_width, y2, fill=shade, outline="")
 
-        # Carretera centrada
+        # Centered road
         self.canvas.create_rectangle(0, road_top, canvas_width, road_bottom, fill="#5a5a5a", outline="")
 
-        # === Césped superior (oscuro → claro hacia la carretera) ===
         for i in range(road_top):
             rel = i / road_top
-            green_val = int(50 + rel * 80)  # verde oscuro arriba, más claro abajo
+            green_val = int(50 + rel * 80)
             shade = f"#{green_val:02x}{150:02x}{green_val:02x}"
             self.canvas.create_line(0, i, canvas_width, i, fill=shade)
 
-        # === Carretera (encima del césped) ===
         for i in range(road_top, road_bottom):
             rel = (i - road_top) / road_height
-            gray = int(90 + rel * 90)  # gris medio → claro
+            gray = int(90 + rel * 90)  
             shade = f"#{gray:02x}{gray:02x}{gray:02x}"
             self.canvas.create_line(0, i, canvas_width, i, fill=shade)
 
-        # === Césped inferior (claro → oscuro hacia abajo) ===
         for i in range(road_bottom, canvas_height):
             rel = (i - road_bottom) / (canvas_height - road_bottom)
-            green_val = int(130 - rel * 60)  # más claro junto a la carretera, más oscuro abajo
+            green_val = int(130 - rel * 60)  
             shade = f"#{green_val:02x}{150:02x}{green_val:02x}"
             self.canvas.create_line(0, i, canvas_width, i, fill=shade)
 
-        # === Carriles ===
+        # Lanes
         lane_count = 3
         lane_height = road_height // lane_count
-
-        # Bordes de carriles (para líneas viales)
         lane_borders = [road_top + i * lane_height for i in range(lane_count + 1)]
-        # Centros de carriles (para auto y obstáculos)
         lane_centers = [(lane_borders[i] + lane_borders[i+1]) / 2 for i in range(lane_count)]
 
-        # Líneas viales
-        offset = (self.app.car.x // 15) % 30
-        for lane_y in lane_borders[1:-1]:  # solo las divisorias internas
-            for x in range(-offset, canvas_width, 30):
-                self.canvas.create_line(x, lane_y, x+12, lane_y, fill="white", width=3)
+        # === Líneas viales ===
+        for i in range(1, lane_count):
+            y = lane_borders[i]
+            self.canvas.create_line(0, y, canvas_width, y, fill="white", dash=(12, 12), width=3)
 
-        # === Carro ===
-        car_x = 120
-        car_y = lane_centers[self.app.car.y] + self.app.car.get_jump_offset()
-        icon_key = self.app.car.get_icon_key()
-        self.canvas.create_image(car_x, car_y, image=self.icons[icon_key], anchor="center")
-
-        # === Obstáculos ===
+        # Obstacles
         render_distance_front = canvas_width
         render_distance_back = 100
         obstacle_width = 40
+
+        car_x = 120
 
         visibles = self.tree.range_query(
             self.tree.root,
@@ -254,7 +243,6 @@ class GraphicInterface:
             ox, oy = obs["x1"], obs["y1"]
             screen_x = car_x + (ox - self.app.car.x)
             screen_y = lane_centers[oy]
-
             tipo = obs["tipo"]
             if tipo in self.icons:
                 self.canvas.create_image(screen_x, screen_y, image=self.icons[tipo], anchor="center")
@@ -267,7 +255,12 @@ class GraphicInterface:
                     fill=fill_color, outline=""
                 )
 
-        # === Barra de energía ===
+        # Car
+        car_y = lane_centers[self.app.car.y] + self.app.car.get_jump_offset()
+        icon_key = self.app.car.get_icon_key()
+        self.canvas.create_image(car_x, car_y, image=self.icons[icon_key], anchor="center")
+
+        # Energy bar
         bar_x, bar_y, bar_w, bar_h = 10, 10, 200, 20
         self.canvas.create_rectangle(bar_x, bar_y, bar_x+bar_w, bar_y+bar_h,
                                     outline="white", width=2)
@@ -437,16 +430,16 @@ class GraphicInterface:
             messagebox.showwarning("Warning", "Please load configuration first.")
             return
         
-        # Detener loop del juego si estaba corriendo
+        # Stop loop
         self.game_running = False  
         
-        # Crear nuevo árbol y reiniciar app con la misma config
+        # Create new tree and restart app with the same configuration
         self.tree = AVLTree()
         config = self.config_mgr.get_config()
         self.app = App(config, self.tree, gui=self)
         self.app.load_obstacles(self.config_mgr.get_obstacles())
         
-        # Reiniciar carro
+        # restar car
         self.app.car.x = 0
         self.app.car.y = 0
         self.app.car.energy = 100
@@ -454,13 +447,13 @@ class GraphicInterface:
         self.app.car.jump_offset = 0
         self.app.car.jump_velocity = 0
         
-        # Limpiar canvas
+        # clean canvas
         self.canvas.delete("all")
         
-        # Redibujar estado inicial (carro y obstáculos)
+        # Redraw 
         self.draw_game()
         
-        # También refrescar AVL si estaba abierto
+        # Refresh AVL if still open
         if hasattr(self, "tree_window") and self.tree_window.winfo_exists():
             self.show_tree()
         
