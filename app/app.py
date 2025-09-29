@@ -63,7 +63,7 @@ class App:
                 if ox1 <= self.car.x + 40 and self.car.x <= ox2:
                     # Check same lane (y)
                     if self.car.y in (oy1, oy2):
-                        print(f"💥 Collision at ({ox1},{oy1}) - removing node")
+                        print(f" Collision at ({ox1},{oy1}) - removing node")
                         self.car.collide(obs)
                         self.tree.root = self.tree.delete(self.tree.root, (ox1, oy1, ox2, oy2))
 
@@ -73,7 +73,7 @@ class App:
         # remove obstacles behind car
         for node in list(self.tree.inorder(self.tree.root)):
             x1, y1, x2, y2 = node.value
-            if x2 < self.car.x:
+            if x2 < self.car.x - 200:
                 self.tree.root = self.tree.delete(self.tree.root, node.value)
                 if self.gui:
                     self.gui.show_tree()

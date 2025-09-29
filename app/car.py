@@ -15,12 +15,14 @@ class Car:
         self.x += self.speed
 
     def move_up(self):
+        if self.y > 0:
+            self.y -= 1
+
+    def move_down(self):
         if self.y < 2:
             self.y += 1
 
-    def move_down(self):
-        if self.y > 0:
-            self.y -= 1
+
 
     def jump(self):
         """Start a jump if not already jumping"""

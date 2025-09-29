@@ -132,7 +132,7 @@ class AVLTree:
                 return root.left
             temp = self.get_min(root.right)
             root.value = temp.value
-            root.type = temp.type   # 👈 ahora sí
+            root.type = temp.tipo 
             root.right = self.delete(root.right, temp.value)
 
         self._update_height(root)
