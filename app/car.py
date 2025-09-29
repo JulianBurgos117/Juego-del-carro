@@ -1,54 +1,51 @@
 class Car:
-    def __init__(self, color="blue", energy=100, speed=5, jump_height=10):
+    def __init__(self, color="blue", energy=100, speed=5, jump_height=6, jump_duration=30):
         self.x = 0
-        self.y = 1  # lanes: 0 bottom, 1 middle, 2 top
+        self.y = 1  # lane: 0=bottom, 1=middle, 2=top
         self.energy = energy
         self.color = color
         self.speed = speed
-
-        # Jump settings
-        self.jump_height = jump_height   # how many "frames" it stays up
+        self.jump_height = jump_height
+        self.jump_duration = jump_duration
         self.is_jumping = False
-        self.jump_ticks = 0
-        self.jump_offset = 0  # vertical displacement in pixels
+        self.jump_progress = 0  # counter for jump frames
 
     def move_forward(self):
-        """Automatically move in X axis"""
+        """Move automatically in X axis"""
         self.x += self.speed
 
     def move_up(self):
-        """Move to upper lane"""
         if self.y < 2:
             self.y += 1
 
     def move_down(self):
-        """Move to lower lane"""
         if self.y > 0:
             self.y -= 1
 
     def jump(self):
-        """Start jump (only if not already jumping)"""
+        """Start a jump if not already jumping"""
         if not self.is_jumping:
             self.is_jumping = True
-            self.jump_ticks = self.jump_height
-            self.jump_offset = 0  # start from ground
+            self.jump_progress = 0
 
     def update_jump(self):
-        """Update jump effect (rise and fall)"""
+        """Update jump progress"""
         if self.is_jumping:
-            if self.jump_ticks > 0:
-                # Going up
-                self.jump_offset += 6   # speed going up
-                self.jump_ticks -= 1
-            else:
-                # Falling down
-                self.jump_offset -= 6   # speed falling down
-                if self.jump_offset <= 0:
-                    self.jump_offset = 0
-                    self.is_jumping = False
+            self.jump_progress += 1
+            if self.jump_progress >= self.jump_duration:
+                self.is_jumping = False
+
+    def get_jump_offset(self):
+        """Smooth jump offset in pixels"""
+        if not self.is_jumping:
+            return 0
+        mid = self.jump_duration / 2
+        return -int(
+            self.jump_height * 10 * (1 - abs(self.jump_progress - mid) / mid)
+        )
 
     def get_icon_key(self):
-        """Return correct car image depending on jump state"""
+        """Choose correct car icon"""
         return "car_jump" if self.is_jumping else "car"
 
     def collide(self, obstacle):
